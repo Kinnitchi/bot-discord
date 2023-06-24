@@ -1,19 +1,11 @@
 const { SlashCommandBuilder } = require('discord.js');
 const ytdl = require('ytdl-core');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
-const { spotifySecret, spotifyID, spotifyCallback } = require('../config.json');
-const SpotifyWebApi = require('spotify-web-api-node');
-// Crie uma instância do cliente com suas credenciais
-const spotifyApi = new SpotifyWebApi({
-	clientId: spotifyID,
-	clientSecret: spotifySecret,
-	redirectUri: spotifyCallback,
-});
-spotifyApi.createAuthorizeURL(['22rvl7vgjgcsug72rkeiwa2ci', 'igorziin8@gmail.com'], 'Brasil');
+const { joinVoiceChannel, createAudioResource, createAudioPlayer, AudioPlayerStatus } = require('@discordjs/voice');
+const ytSearch = require('yt-search');
 
 module.exports = {
 	data: new SlashCommandBuilder()
-		.setName('spotify')
+		.setName('play')
 		.setDescription('Toca uma música')
 		.addStringOption(option => option.setName('song').setDescription('Nome da música').setRequired(true)),
 	async execute(interaction) {
@@ -24,14 +16,7 @@ module.exports = {
 			return;
 		}
 		try {
-			const { body: { tracks: { items } } } = await spotifyApi.searchTracks(song, { limit: 1 });
-			if (items.length === 0) {
-				await interaction.reply('Não foi possível encontrar a música.');
-				return;
-			}
-
-			const track = items[0];
-			const audioUrl = track.preview_url;
+			const audioUrl = await getAudioUrl(song);
 			if (!audioUrl) {
 				await interaction.reply('Não foi possível reproduzir a música.');
 				return;
@@ -54,7 +39,7 @@ module.exports = {
 				connection.destroy();
 			});
 
-			await interaction.reply(`Tocando ${track.name} - ${track.artists[0].name}`);
+			await interaction.reply('Tocando a música.');
 		}
 		catch (error) {
 			console.error(error);
@@ -62,3 +47,18 @@ module.exports = {
 		}
 	},
 };
+
+async function getAudioUrl(song) {
+	try {
+		const result = await ytSearch(song);
+		if (!result.videos.length) {
+			return null;
+		}
+		const video = result.videos[0];
+		return video.url;
+	}
+	catch (error) {
+		console.error(error);
+		return null;
+	}
+}
